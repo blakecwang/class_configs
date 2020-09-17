@@ -9,10 +9,10 @@ import itertools
 
 # Define the range of state lengths to iterate through. A different state length
 # means a different number of classes.
-STATE_LEN_RANGE = range(3,8)
+STATE_LEN_RANGE = range(6,9)
 
 # Make experiments repeatable.
-RANDOM_STATE = 255
+RANDOM_STATE = 300
 NEG_INF = -1000000
 
 # Set how many students are in each grade.
@@ -40,37 +40,48 @@ def klass_config_fitness(state, c):
     for klass in klasses:
         klass_size = klass.shape[0]
 
+        # Check that no class contains students for more than 2 grades.
+        if np.unique(klass).shape[0] > 2:
+            return NEG_INF
+
         # Count values for grades TK-3.
         if 5 not in klass and 6 not in klass:
             tk3_sum += klass_size
             tk3_count += 1
-
-        # Check that no class contains students for > 2 grades.
-        if np.unique(klass).shape[0] > 2:
-            return NEG_INF
+            fitness -= (25 - klass_size) ** 2
 
         # Check that grades 4 and 5 don't exceed 34 students per class.
         if np.all(klass == 5) or np.all(klass == 6):
             if klass_size > 34:
                 return NEG_INF
+            fitness -= (34 - klass_size) ** 2
 
         # Check that 4/5 combos don't exceed 31 students per class.
-        if np.array_equal(np.unique(klass), np.array([5,6])) and klass_size > 31:
-            return NEG_INF
+        if np.array_equal(np.unique(klass), np.array([5,6])):
+            if klass_size > 31:
+                return NEG_INF
+            fitness -= (31 - klass_size) ** 2
 
         # Check that 3/4 combos don't exceed 25 students per class.
-        if np.array_equal(np.unique(klass), np.array([4,5])) and klass_size > 31:
-            return NEG_INF
-
-        # Check that 3/4 combos don't exceed 25 students per class.
-        if np.array_equal(np.unique(klass), np.array([4,5])) and klass_size > 31:
-            return NEG_INF
-
-        fitness -= (31 - klass_size) ** 2
+        if np.array_equal(np.unique(klass), np.array([4,5])):
+            if klass_size > 25:
+                return NEG_INF
+            fitness -= (25 - klass_size) ** 2
 
     # Check that the average class size for TK-3 doesn't exceed 25.
     if tk3_sum / tk3_count > 25:
         return NEG_INF
+
+    # If a combo contains less than 5 students of a certain grade, encourage the
+    # algorithm to convert it to straight.
+    # TODO: Make this work better.
+    for i in state:
+        for j in STUDENT_INPUT:
+            diff = abs(i - j)
+            if diff < 5:
+                fitness -= diff ** 4
+
+    # TODO: Encourage even class sizes within tk-3, etc.
 
     return fitness
 
@@ -104,8 +115,8 @@ for state_len in STATE_LEN_RANGE:
     try_state, try_fitness = mlrose.random_hill_climb(
         problem,
         max_attempts=100,
-        max_iters=1000,
-        restarts=100,
+        max_iters=10000,
+        restarts=10,
         init_state=init_state,
         curve=False,
         random_state=RANDOM_STATE
