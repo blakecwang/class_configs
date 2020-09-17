@@ -26,21 +26,51 @@ for i in range(len(STUDENT_INPUT)):
         STUDENTS.append(i)
 STUDENTS = np.array(STUDENTS, dtype=np.int64)
 
+# QUESTIONS
+# What is the min number of kids per grade in a combo?
+
 # Define a custom fitness function.
 def klass_config_fitness(state, c):
     fitness = 0
     state = np.sort(state)
     klasses = np.array(np.split(STUDENTS, state))
 
+    tk3_sum = 0
+    tk3_count = 0
     for klass in klasses:
         klass_size = klass.shape[0]
 
+        # Count values for grades TK-3.
+        if 5 not in klass and 6 not in klass:
+            tk3_sum += klass_size
+            tk3_count += 1
+
+        # Check that no class contains students for > 2 grades.
+        if np.unique(klass).shape[0] > 2:
+            return NEG_INF
+
         # Check that grades 4 and 5 don't exceed 34 students per class.
-#        if np.all(klass == 5) or np.all(klass == 6):
-        if klass_size > 34:
+        if np.all(klass == 5) or np.all(klass == 6):
+            if klass_size > 34:
+                return NEG_INF
+
+        # Check that 4/5 combos don't exceed 31 students per class.
+        if np.array_equal(np.unique(klass), np.array([5,6])) and klass_size > 31:
+            return NEG_INF
+
+        # Check that 3/4 combos don't exceed 25 students per class.
+        if np.array_equal(np.unique(klass), np.array([4,5])) and klass_size > 31:
+            return NEG_INF
+
+        # Check that 3/4 combos don't exceed 25 students per class.
+        if np.array_equal(np.unique(klass), np.array([4,5])) and klass_size > 31:
             return NEG_INF
 
         fitness -= (31 - klass_size) ** 2
+
+    # Check that the average class size for TK-3 doesn't exceed 25.
+    if tk3_sum / tk3_count > 25:
+        return NEG_INF
 
     return fitness
 
@@ -88,6 +118,7 @@ for state_len in STATE_LEN_RANGE:
         best_state = try_state
         best_state_len = state_len
 
+print('')
 print('best_state_len', best_state_len)
 print('best_state', best_state)
 print('best_fitness', best_fitness)
